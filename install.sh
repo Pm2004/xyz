@@ -172,3 +172,4 @@ docker compose up --build -d
 # Output completion message
 echo "Your worker node has been started. To check logs, run:"
 echo "docker logs -f worker"
+
