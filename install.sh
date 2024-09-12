@@ -29,41 +29,21 @@ cd basic-coin-prediction-node || exit
 cp .env.example .env
 cp config.example.json config.json
 
-# Function to update .env file
+# Update .env file with Binance API keys
 update_env() {
   key=$1
   value=$2
   sed -i "s/^$key=.*/$key=$value/" .env
 }
 
-# Function to update config.json with user input using jq
-update_config() {
-  key=$1
-  value=$2
-  jq --arg v "$value" ".worker[0].parameters.$key = \$v" config.json > config.tmp.json && mv config.tmp.json config.json
-}
+# Set Binance API keys for different tokens
+update_env "BINANCE_API_KEY_BTC_BNB" "EyMypMMZUkH7FWjwRvpVNIPseT4fjEdgBauIPWqufLdI8XmmWbGddWDu6OSNZoDk"
+update_env "BINANCE_API_KEY_ETH_SOL" "2Q0SWfNe6YAjTzG5lktbmMOT0O8BrBpvfmHSmHhtaO0HQfmQjW2fUUcPDYO16qw3"
 
-# Prompt user for TOKEN
-echo "Please select a TOKEN from the list below (Choose from BTC, ETH, SOL, BNB):"
-PS3="Enter your choice (1-4): "
-options=("BTC" "ETH" "SOL" "BNB")
-select opt in "${options[@]}"; do
-  if [[ -n $opt ]]; then
-    update_env "TOKEN" "$opt"
-    update_config "Token" "$opt"
-    break
-  fi
-done
-
-# Prompt for wallet and seed phrase
-read -p "Enter your wallet name: " wallet_name
-read -p "Enter your seed phrase: " seed_phrase
-jq --arg wallet "$wallet_name" --arg seed "$seed_phrase" \
-'.wallet.addressKeyName = $wallet | .wallet.addressRestoreMnemonic = $seed' config.json > config.tmp.json && mv config.tmp.json config.json
+# Update config.json with token settings
+jq '.worker[0].parameters.Token = "ALL"' config.json > config.tmp.json && mv config.tmp.json config.json
 
 # Python ML code integration starts here
-# ----------------------
-
 cat > ml_model.py <<EOF
 import torch
 import torch.nn as nn
@@ -71,7 +51,6 @@ import pandas as pd
 import requests
 from sklearn.preprocessing import MinMaxScaler
 
-# Custom Attention Layer
 class AttentionLayer(nn.Module):
     def __init__(self, hidden_layer_size):
         super(AttentionLayer, self).__init__()
@@ -84,7 +63,6 @@ class AttentionLayer(nn.Module):
         weighted_output = lstm_output * attn_scores
         return torch.sum(weighted_output, dim=1)
 
-# Advanced BiLSTM Model with Attention
 class AdvancedBiLSTMModel(nn.Module):
     def __init__(self, input_size, hidden_layer_size, output_size, num_layers, dropout):
         super(AdvancedBiLSTMModel, self).__init__()
@@ -102,7 +80,6 @@ class AdvancedBiLSTMModel(nn.Module):
         predictions = self.linear(attn_out)
         return predictions
 
-# Fetch historical data from Binance
 def get_binance_data(symbol="ETHUSDT", interval="1m", limit=1000):
     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     response = requests.get(url)
@@ -121,7 +98,6 @@ def get_binance_data(symbol="ETHUSDT", interval="1m", limit=1000):
     else:
         raise Exception(f"Failed to retrieve data: {response.text}")
 
-# Prepare dataset for training
 def prepare_dataset(symbols, sequence_length=10):
     all_data = []
     for symbol in symbols:
@@ -136,7 +112,6 @@ def prepare_dataset(symbols, sequence_length=10):
             all_data.append((seq, label))
     return all_data, scaler
 
-# Train model
 def train_model(model, data, epochs=50, lr=0.001, sequence_length=10):
     criterion = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
@@ -172,4 +147,3 @@ docker compose up --build -d
 # Output completion message
 echo "Your worker node has been started. To check logs, run:"
 echo "docker logs -f worker"
-
